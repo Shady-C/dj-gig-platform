@@ -29,7 +29,7 @@ The detailed build specification lives in `docs/DJ_GIG_PLATFORM_SPEC.md`. This f
 | Admin state | Zustand | JWT persistence |
 | Payments | Stripe | Tip PaymentIntent and webhook flow |
 | Music search | iTunes Search API | Direct browser call; no server proxy |
-| Uploads | Multer + Cloudinary | Hero image upload |
+| Uploads | Multer + Cloudinary | Hero image uploads stream to Cloudinary in all environments |
 | Validation | Zod | Environment validation and request validation |
 | Styling | Inline styles | No CSS framework |
 
@@ -167,7 +167,7 @@ In scope:
 - Bootstrap admin credentials from server environment variables.
 - Public event lookup by slug.
 - Admin event CRUD and lifecycle controls.
-- Cloudinary hero image upload with Multer memory storage, 5 MB max, images only.
+- Cloudinary-only hero image upload with Multer memory storage, 5 MB max, images only. See ADR-0002.
 - Public song request queue.
 - iTunes browser-side search and request submission.
 - Duplicate request handling through a unique `(eventId, itunesTrackId)` index.

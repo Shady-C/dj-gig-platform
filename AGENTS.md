@@ -69,7 +69,7 @@ Server → client socket emissions: `event:updated`, `event:live-changed`, `requ
 - **Duplicate song requests** — `SongRequest` has a unique compound index `(eventId, itunesTrackId)`. Return `409 Conflict` with the existing doc when a duplicate is submitted; the client should vote instead.
 - **Vote deduplication** — enforced client-side only via `localStorage` (intentional for v1). Server does not validate.
 - **`isLive` flag** — set only by the admin toggle (`PATCH /api/events/:id/live`). Never auto-compute from `event.date`.
-- **Hero image upload** — Multer middleware: memory storage, 5 MB limit, images only. Upload buffer to Cloudinary folder `dj-gig-platform/heroes`.
+- **Hero image upload** — Multer middleware: memory storage, 5 MB limit, images only. Upload buffer to Cloudinary folder `dj-gig-platform/heroes` in every environment.
 - **Admin Vite port** — must run on `5174` to avoid collision with client on `5173`.
 - **Async route handlers** — all must use try/catch or an async wrapper; `errorHandler` middleware returns `{ error: message }` JSON.
 

@@ -3,6 +3,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const cloudinaryEnvVars = [
+  'CLOUDINARY_CLOUD_NAME',
+  'CLOUDINARY_API_KEY',
+  'CLOUDINARY_API_SECRET',
+] as const;
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().default('4000'),
@@ -16,11 +22,22 @@ const envSchema = z.object({
   TIP_CURRENCY: z.string().length(3).default('cad'),
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
-  CLOUDINARY_CLOUD_NAME: z.string().min(1),
-  CLOUDINARY_API_KEY: z.string().min(1),
-  CLOUDINARY_API_SECRET: z.string().min(1),
+  CLOUDINARY_CLOUD_NAME: z.string().optional().default(''),
+  CLOUDINARY_API_KEY: z.string().optional().default(''),
+  CLOUDINARY_API_SECRET: z.string().optional().default(''),
   CLIENT_ORIGIN: z.string().url(),
   ADMIN_ORIGIN: z.string().url(),
+}).superRefine((value, ctx) => {
+  for (const key of cloudinaryEnvVars) {
+    const envValue = value[key].trim();
+    if (!envValue || envValue.startsWith('REPLACE_WITH_')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key],
+        message: `${key} is required for hero image uploads`,
+      });
+    }
+  }
 });
 
 const result = envSchema.safeParse(process.env);

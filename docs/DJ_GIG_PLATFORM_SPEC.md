@@ -115,7 +115,7 @@ dj-gig-platform/
 | Fonts | Bebas Neue + DM Sans via Google Fonts | |
 | Payment | Stripe.js + Stripe Node SDK | Tip flow |
 | Music search | iTunes Search API | Free, no key required |
-| File upload | Multer + Cloudinary | Hero image uploads |
+| File upload | Multer + Cloudinary | Cloudinary-backed hero image uploads in all environments |
 | Validation | Zod | Server-side env + request bodies |
 | Linting | ESLint + Prettier | |
 
@@ -144,7 +144,7 @@ export interface IEvent extends Document {
   coverInfo: string;         // e.g. "19+ | Smart Casual | $15 at door"
   ticketLink: string;
   instagramLink: string;
-  heroImageUrl: string;      // Cloudinary URL
+  heroImageUrl: string;      // Cloudinary secure URL
   status: 'draft' | 'published' | 'live' | 'ended';
   createdAt: Date;
   updatedAt: Date;
@@ -282,6 +282,7 @@ TIP_CURRENCY=cad
 # Webhook: https://dashboard.stripe.com/test/webhooks
 
 # ── Cloudinary ────────────────────────────────────
+# Required for hero image uploads in all environments.
 CLOUDINARY_CLOUD_NAME=REPLACE_WITH_YOUR_CLOUD_NAME
 CLOUDINARY_API_KEY=REPLACE_WITH_YOUR_API_KEY
 CLOUDINARY_API_SECRET=REPLACE_WITH_YOUR_API_SECRET
@@ -357,7 +358,7 @@ All routes prefixed `/api`. Auth-guarded routes require `Authorization: Bearer <
 | GET | `/api/admin/events/:eventId` | ✅ Admin | Get event by ID |
 | PATCH | `/api/admin/events/:eventId` | ✅ Admin | Update event fields |
 | PATCH | `/api/admin/events/:eventId/status` | ✅ Admin | Set lifecycle status |
-| POST | `/api/admin/events/:eventId/hero` | ✅ Admin | Upload hero image (multipart) → Cloudinary |
+| POST | `/api/admin/events/:eventId/hero` | ✅ Admin | Upload hero image (multipart) to Cloudinary |
 
 ### 6.3 Song Requests
 
@@ -580,17 +581,16 @@ Admin access is user-backed. Events are owned by `ownerId`; admin role can see a
 
 ---
 
-## 12. Cloudinary Hero Image Upload Flow
+## 12. Hero Image Upload Flow
 
 ```
 1. Admin selects image file in Event Editor
 2. Frontend POSTs multipart form to POST /api/admin/events/:eventId/hero
 3. Multer middleware processes the file (memory storage, 5MB limit, images only)
-4. Server uploads buffer to Cloudinary (folder: 'dj-gig-platform/heroes')
-5. Cloudinary returns secure_url
-6. Server updates Event.heroImageUrl in MongoDB
-7. Server emits event:updated { heroImageUrl } socket event
-8. All connected clients update hero image in real time
+4. Server uploads buffer to Cloudinary (folder: 'dj-gig-platform/heroes') and uses secure_url
+5. Server updates Event.heroImageUrl in MongoDB
+6. Server emits event:updated { heroImageUrl } socket event
+7. All connected clients update hero image in real time
 ```
 
 ---
@@ -657,7 +657,7 @@ Admin access is user-backed. Events are owned by `ownerId`; admin role can see a
 
 11. **Admin port** — Run the admin Vite dev server on port `5174` to avoid conflict with the client on `5173`.
 
-12. **Hero image** — Validate file type (images only) and size (max 5MB) in the Multer middleware before hitting Cloudinary.
+12. **Hero image** — Validate file type (images only) and size (max 5MB) in the Multer middleware before uploading to Cloudinary.
 
 13. **Existing UI designs** — The JSX component structure and all inline styles are already designed and finalised. Replicate them exactly when implementing `client/src/` and `admin/src/`. Do not redesign; only wire up real data and socket connections.
 
@@ -669,7 +669,7 @@ Admin access is user-backed. Events are owned by `ownerId`; admin role can see a
 - **Client**: Vercel — set `VITE_*` vars; public event URLs use `/gig/:slug`
 - **Admin**: Vercel (separate project) — same env setup
 - **MongoDB**: MongoDB Atlas free tier to start
-- **Cloudinary**: Free tier covers ~25GB storage
+- **Cloudinary**: Free tier covers ~25GB storage. Create a product environment in the Cloudinary console, then set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` wherever the server runs.
 - **Stripe**: Switch `sk_test_*` → `sk_live_*` and `pk_test_*` → `pk_live_*` before going live
 - Socket.IO in production requires sticky sessions if load-balanced (use Redis adapter)
 
