@@ -282,6 +282,20 @@ npm run dev:client
 npm run dev:admin
 ```
 
+Clean up stale local dev port listeners after closing the app:
+
+```bash
+npm run dev:cleanup:dry
+npm run dev:cleanup
+```
+
+The cleanup command targets ports `4000`, `5173`, and `5174`.
+To clean up an unexpected fallback port, pass it explicitly:
+
+```bash
+npm run dev:cleanup -- 5175
+```
+
 ## Verification
 
 There is no configured `npm test` script at this time.

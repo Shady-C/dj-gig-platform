@@ -6,7 +6,9 @@
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
     "dev:admin": "cd admin && npm run dev -- --port 5174",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:admin\""
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\" \"npm run dev:admin\"",
+    "dev:cleanup": "bash scripts/cleanup-ports.sh",
+    "dev:cleanup:dry": "bash scripts/cleanup-ports.sh --dry-run"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
