@@ -31,6 +31,8 @@ The detailed build specification lives in `docs/DJ_GIG_PLATFORM_SPEC.md`. This f
 | Music search | iTunes Search API | Direct browser call; no server proxy |
 | Uploads | Multer + Cloudinary | Hero image uploads stream to Cloudinary in all environments |
 | Validation | Zod | Environment validation and request validation |
+| API deployment | Railway | Single-instance Phase 1 deployment target |
+| Frontend deployment | Vercel | Separate public client and admin projects |
 | Styling | Inline styles | No CSS framework |
 
 ## Architecture
@@ -51,6 +53,7 @@ Runtime connections:
 - Socket.IO joins event-scoped rooms and must not broadcast globally.
 - iTunes search runs directly from the browser using `https://itunes.apple.com/search`.
 - Stripe webhooks require the raw request body before global JSON parsing.
+- Production API deployment targets Railway with `/health` as the health check and `TRUST_PROXY_HOPS=1`.
 
 ## Database Schema
 
@@ -178,12 +181,12 @@ In scope:
 - Private admin dashboard.
 - Local development scripts for all three packages.
 - Build and lint checks for packages that define them.
+- Single-instance production deployment readiness for Railway API plus Vercel frontends. See ADR-0003.
 
 Out of scope for Phase 1 unless explicitly requested:
 
 - Multi-tenant billing and subscriptions.
 - DJ self-signup, password reset, and team invitations.
-- Production deployment automation.
 - Mobile app builds.
 - Advanced analytics dashboards.
 - Moderation tooling beyond request status changes.
@@ -194,7 +197,8 @@ Out of scope for Phase 1 unless explicitly requested:
 - The active admin app is `admin/`.
 - The previous nested `client/admin/` Vite scaffold has been removed.
 - Root `npm run dev` starts all three local processes through `concurrently`.
-- Automated test scripts are not currently configured; use build and lint scripts as the verification baseline.
+- Server tests are configured with Vitest; frontend packages use build checks as the verification baseline.
+- Production deployment setup lives in `docs/12-deployment-production.md`.
 - `docs/` is canonical. Confluence, if used later, is only a publish target.
 
 ## Key Design Decisions
@@ -202,6 +206,8 @@ Out of scope for Phase 1 unless explicitly requested:
 | ADR | Decision |
 | --- | --- |
 | ADR-0001 | Apply SaaS-ready MVP architecture: user-backed auth, event ownership, public slugs, event lifecycle status, vote records, scoped sockets, validated tip flow, and security hardening. |
+| ADR-0002 | Use Cloudinary for all hero image uploads. |
+| ADR-0003 | Deploy the API on Railway as a single instance with Vercel frontends. |
 
 ## Environment Variables
 
@@ -211,6 +217,7 @@ Required:
 
 - `NODE_ENV`
 - `PORT`
+- `TRUST_PROXY_HOPS`
 - `MONGODB_URI`
 - `JWT_SECRET`
 - `JWT_EXPIRES_IN`

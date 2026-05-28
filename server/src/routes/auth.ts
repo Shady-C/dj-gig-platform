@@ -1,10 +1,17 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+import { z } from 'zod';
 import { env } from '../config/env';
 import User from '../models/User';
+import { parseBody } from '../utils/validation';
 
 const router = Router();
+
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
 
 async function ensureBootstrapAdmin() {
   const email = env.ADMIN_EMAIL.toLowerCase();
@@ -21,12 +28,9 @@ async function ensureBootstrapAdmin() {
 }
 
 router.post('/login', async (req: Request, res: Response) => {
-  const { email, password } = req.body as { email?: string; password?: string };
-
-  if (!email || !password) {
-    res.status(400).json({ error: 'Email and password required' });
-    return;
-  }
+  const body = parseBody(loginSchema, req.body, res);
+  if (!body) return;
+  const { email, password } = body;
 
   const user =
     email.toLowerCase() === env.ADMIN_EMAIL.toLowerCase()

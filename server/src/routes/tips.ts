@@ -2,11 +2,13 @@ import { Router, Request, Response } from 'express';
 import Stripe from 'stripe';
 import mongoose from 'mongoose';
 import rateLimit from 'express-rate-limit';
+import { z } from 'zod';
 import { env } from '../config/env';
 import Tip from '../models/Tip';
 import Event from '../models/Event';
 import { requireAdmin } from '../middleware/auth';
 import { hashIdentifier } from '../utils/hash';
+import { objectIdSchema, parseBody, parseParams } from '../utils/validation';
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY);
 
@@ -20,6 +22,22 @@ const tipRateLimit = rateLimit({
 
 type GigParams = { slug: string };
 type AdminParams = { eventId: string };
+
+const gigParamsSchema = z.object({
+  slug: z.string().trim().min(1),
+});
+
+const adminParamsSchema = z.object({
+  eventId: objectIdSchema,
+});
+
+const tipIntentSchema = z.object({
+  amount: z.number().int().min(env.MIN_TIP_AMOUNT).max(env.MAX_TIP_AMOUNT),
+  currency: z.string().length(3).optional(),
+  tipperName: z.string().max(120).optional(),
+  message: z.string().max(500).optional(),
+  idempotencyKey: z.string().max(200).optional(),
+}).strict();
 
 function eventScope(req: Request) {
   if (req.user?.role === 'admin') return {};
@@ -35,32 +53,17 @@ export function createTipsRouter(): Router {
   const router = Router();
 
   router.post('/gigs/:slug/tips/intent', tipRateLimit, async (req: Request<GigParams>, res: Response) => {
-    const { amount, currency, tipperName, message, idempotencyKey } = req.body as {
-      amount?: number;
-      currency?: string;
-      tipperName?: string;
-      message?: string;
-      idempotencyKey?: string;
-    };
-
-    if (
-      !amount ||
-      typeof amount !== 'number' ||
-      amount < env.MIN_TIP_AMOUNT ||
-      amount > env.MAX_TIP_AMOUNT
-    ) {
-      res.status(400).json({
-        error: `amount must be between ${env.MIN_TIP_AMOUNT} and ${env.MAX_TIP_AMOUNT} cents`,
-      });
-      return;
-    }
+    const params = parseParams(gigParamsSchema, req.params, res);
+    const body = parseBody(tipIntentSchema, req.body, res);
+    if (!params || !body) return;
+    const { amount, currency, tipperName, message, idempotencyKey } = body;
 
     if (currency && currency.toLowerCase() !== env.TIP_CURRENCY) {
       res.status(400).json({ error: `currency must be ${env.TIP_CURRENCY}` });
       return;
     }
 
-    const event = await Event.findOne({ slug: req.params.slug });
+    const event = await Event.findOne({ slug: params.slug });
     if (!event) {
       res.status(404).json({ error: 'Event not found' });
       return;
@@ -99,17 +102,21 @@ export function createTipsRouter(): Router {
   });
 
   router.get('/admin/events/:eventId/tips', requireAdmin, async (req: Request<AdminParams>, res: Response) => {
-    const event = await Event.findOne({ _id: req.params.eventId, ...eventScope(req) });
+    const params = parseParams(adminParamsSchema, req.params, res);
+    if (!params) return;
+    const event = await Event.findOne({ _id: params.eventId, ...eventScope(req) });
     if (!event) {
       res.status(404).json({ error: 'Event not found' });
       return;
     }
-    const tips = await Tip.find({ eventId: req.params.eventId }).sort({ createdAt: -1 });
+    const tips = await Tip.find({ eventId: params.eventId }).sort({ createdAt: -1 });
     res.json(tips);
   });
 
   router.get('/admin/events/:eventId/tips/summary', requireAdmin, async (req: Request<AdminParams>, res: Response) => {
-    const event = await Event.findOne({ _id: req.params.eventId, ...eventScope(req) });
+    const params = parseParams(adminParamsSchema, req.params, res);
+    if (!params) return;
+    const event = await Event.findOne({ _id: params.eventId, ...eventScope(req) });
     if (!event) {
       res.status(404).json({ error: 'Event not found' });
       return;
@@ -117,7 +124,7 @@ export function createTipsRouter(): Router {
     const result = await Tip.aggregate([
       {
         $match: {
-          eventId: new mongoose.Types.ObjectId(req.params.eventId),
+          eventId: new mongoose.Types.ObjectId(params.eventId),
           status: 'succeeded',
         },
       },

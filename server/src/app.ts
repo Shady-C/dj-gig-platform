@@ -17,6 +17,7 @@ import { createStripeRouter } from './routes/stripe';
 
 export function buildApp(io: Server) {
   const app = express();
+  app.set('trust proxy', env.TRUST_PROXY_HOPS);
 
   const corsOptions = {
     origin: [env.CLIENT_ORIGIN, env.ADMIN_ORIGIN],

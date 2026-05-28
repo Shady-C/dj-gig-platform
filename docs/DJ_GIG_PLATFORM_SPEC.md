@@ -258,6 +258,7 @@ export default mongoose.model<ITip>('Tip', TipSchema);
 # ── App ──────────────────────────────────────────
 NODE_ENV=development
 PORT=4000
+TRUST_PROXY_HOPS=0
 
 # ── MongoDB ───────────────────────────────────────
 MONGODB_URI=mongodb://localhost:27017/dj-gig-platform
@@ -321,8 +322,6 @@ VITE_API_BASE_URL=http://localhost:4000/api
 # Socket.IO server URL
 VITE_SOCKET_URL=http://localhost:4000
 
-# The event ID this admin instance manages
-VITE_EVENT_ID=REPLACE_WITH_MONGODB_EVENT_ID
 ```
 
 ---
@@ -651,6 +650,8 @@ Admin access is user-backed. Events are owned by `ownerId`; admin role can see a
 
 8. **CORS** — Configure Express CORS to allow `CLIENT_ORIGIN` and `ADMIN_ORIGIN` from env. Socket.IO cors must match.
 
+8a. **Proxy trust** — In production on Railway, set `TRUST_PROXY_HOPS=1` so Express and rate limiting use the platform-forwarded client IP.
+
 9. **Error handling** — All async route handlers must use try/catch or an async wrapper. The `errorHandler` middleware catches everything and returns `{ error: message }` JSON.
 
 10. **Stripe webhook raw body** — The Stripe webhook endpoint must receive the raw request body (not JSON-parsed). Configure Express to use `express.raw({ type: 'application/json' })` for that route only, before `express.json()` applies globally.
@@ -663,15 +664,16 @@ Admin access is user-backed. Events are owned by `ownerId`; admin role can see a
 
 ---
 
-## 15. Deployment Notes (for later)
+## 15. Deployment Notes
 
-- **Server**: Railway, Render, or Fly.io — set all env vars in platform dashboard
+- **Server**: Railway single-instance API deployment from `server/`; health check `/health`
 - **Client**: Vercel — set `VITE_*` vars; public event URLs use `/gig/:slug`
 - **Admin**: Vercel (separate project) — same env setup
 - **MongoDB**: MongoDB Atlas free tier to start
 - **Cloudinary**: Free tier covers ~25GB storage. Create a product environment in the Cloudinary console, then set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` wherever the server runs.
 - **Stripe**: Switch `sk_test_*` → `sk_live_*` and `pk_test_*` → `pk_live_*` before going live
-- Socket.IO in production requires sticky sessions if load-balanced (use Redis adapter)
+- Socket.IO is single-instance for Phase 1. If load-balanced later, add sticky sessions or a Redis adapter.
+- Full production setup lives in `docs/12-deployment-production.md`.
 
 ---
 

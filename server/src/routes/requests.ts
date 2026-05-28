@@ -1,17 +1,44 @@
 import { Router, Request, Response } from 'express';
 import { Server } from 'socket.io';
 import rateLimit from 'express-rate-limit';
+import { z } from 'zod';
 import SongRequest, { RequestStatus } from '../models/SongRequest';
 import Vote from '../models/Vote';
 import Event from '../models/Event';
 import { requireAdmin } from '../middleware/auth';
 import { emitToEvent } from '../socket/handlers';
 import { hashIdentifier } from '../utils/hash';
+import { objectIdSchema, parseBody, parseParams } from '../utils/validation';
 
 type GigParams = { slug: string; requestId?: string };
 type AdminParams = { eventId: string; requestId?: string };
 
-const requestStatuses: RequestStatus[] = ['pending', 'approved', 'played', 'rejected'];
+const gigParamsSchema = z.object({
+  slug: z.string().trim().min(1),
+  requestId: objectIdSchema.optional(),
+});
+
+const adminParamsSchema = z.object({
+  eventId: objectIdSchema,
+  requestId: objectIdSchema.optional(),
+});
+
+const submitRequestSchema = z.object({
+  song: z.string().trim().min(1),
+  artist: z.string().trim().min(1),
+  album: z.string().optional().default(''),
+  artworkUrl: z.string().url().or(z.literal('')).optional().default(''),
+  duration: z.string().optional().default(''),
+  itunesTrackId: z.number().int().positive(),
+}).strict();
+
+const requestStatusSchema = z.object({
+  status: z.enum(['pending', 'approved', 'played', 'rejected']),
+}).strict();
+
+const bulkStatusSchema = requestStatusSchema.extend({
+  filter: z.enum(['pending', 'approved', 'played', 'rejected']),
+}).strict();
 
 const submitRateLimit = rateLimit({
   windowMs: 60_000,
@@ -40,8 +67,6 @@ function getSessionId(req: Request): string | null {
 }
 
 function getIp(req: Request): string {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
   return req.ip ?? 'unknown';
 }
 
@@ -49,7 +74,9 @@ export function createRequestsRouter(io: Server): Router {
   const router = Router();
 
   router.get('/gigs/:slug/requests', async (req: Request<GigParams>, res: Response) => {
-    const event = await Event.findOne({ slug: req.params.slug });
+    const params = parseParams(gigParamsSchema, req.params, res);
+    if (!params) return;
+    const event = await Event.findOne({ slug: params.slug });
     if (!event) {
       res.status(404).json({ error: 'Event not found' });
       return;
@@ -59,7 +86,10 @@ export function createRequestsRouter(io: Server): Router {
   });
 
   router.post('/gigs/:slug/requests', submitRateLimit, async (req: Request<GigParams>, res: Response) => {
-    const event = await Event.findOne({ slug: req.params.slug });
+    const params = parseParams(gigParamsSchema, req.params, res);
+    const body = parseBody(submitRequestSchema, req.body, res);
+    if (!params || !body) return;
+    const event = await Event.findOne({ slug: params.slug });
     if (!event) {
       res.status(404).json({ error: 'Event not found' });
       return;
@@ -76,7 +106,7 @@ export function createRequestsRouter(io: Server): Router {
 
     try {
       const songRequest = await SongRequest.create({
-        ...req.body,
+        ...body,
         eventId: event._id,
         voteCount: 1,
         requestedBySessionId: sessionIdHash,
@@ -97,7 +127,7 @@ export function createRequestsRouter(io: Server): Router {
       ) {
         const existing = await SongRequest.findOne({
           eventId: event._id,
-          itunesTrackId: (req.body as { itunesTrackId: number }).itunesTrackId,
+          itunesTrackId: body.itunesTrackId,
         });
         res.status(409).json(existing);
         return;
@@ -107,7 +137,9 @@ export function createRequestsRouter(io: Server): Router {
   });
 
   router.post('/gigs/:slug/requests/:requestId/vote', voteRateLimit, async (req: Request<GigParams>, res: Response) => {
-    const event = await Event.findOne({ slug: req.params.slug });
+    const params = parseParams(gigParamsSchema.required({ requestId: true }), req.params, res);
+    if (!params) return;
+    const event = await Event.findOne({ slug: params.slug });
     if (!event) {
       res.status(404).json({ error: 'Event not found' });
       return;
@@ -119,7 +151,7 @@ export function createRequestsRouter(io: Server): Router {
       return;
     }
 
-    const songRequest = await SongRequest.findOne({ _id: req.params.requestId, eventId: event._id });
+    const songRequest = await SongRequest.findOne({ _id: params.requestId, eventId: event._id });
     if (!songRequest) {
       res.status(404).json({ error: 'Request not found' });
       return;
@@ -156,22 +188,23 @@ export function createRequestsRouter(io: Server): Router {
   });
 
   router.get('/admin/events/:eventId/requests', requireAdmin, async (req: Request<AdminParams>, res: Response) => {
-    const event = await Event.findOne({ _id: req.params.eventId, ...eventScope(req) });
+    const params = parseParams(adminParamsSchema, req.params, res);
+    if (!params) return;
+    const event = await Event.findOne({ _id: params.eventId, ...eventScope(req) });
     if (!event) {
       res.status(404).json({ error: 'Event not found' });
       return;
     }
-    const requests = await SongRequest.find({ eventId: req.params.eventId }).sort({ voteCount: -1 });
+    const requests = await SongRequest.find({ eventId: params.eventId }).sort({ voteCount: -1 });
     res.json(requests);
   });
 
   router.patch('/admin/events/:eventId/requests/bulk-status', requireAdmin, async (req: Request<AdminParams>, res: Response) => {
-    const { eventId } = req.params;
-    const { status, filter } = req.body as { status?: RequestStatus; filter?: RequestStatus };
-    if (!status || !filter || !requestStatuses.includes(status) || !requestStatuses.includes(filter)) {
-      res.status(400).json({ error: 'valid status and filter are required' });
-      return;
-    }
+    const params = parseParams(adminParamsSchema, req.params, res);
+    const body = parseBody(bulkStatusSchema, req.body, res);
+    if (!params || !body) return;
+    const { eventId } = params;
+    const { status, filter } = body;
     const event = await Event.findOne({ _id: eventId, ...eventScope(req) });
     if (!event) {
       res.status(404).json({ error: 'Event not found' });
@@ -184,12 +217,11 @@ export function createRequestsRouter(io: Server): Router {
   });
 
   router.patch('/admin/events/:eventId/requests/:requestId/status', requireAdmin, async (req: Request<AdminParams>, res: Response) => {
-    const { eventId, requestId } = req.params;
-    const { status } = req.body as { status?: RequestStatus };
-    if (!status || !requestStatuses.includes(status)) {
-      res.status(400).json({ error: 'valid status is required' });
-      return;
-    }
+    const params = parseParams(adminParamsSchema.required({ requestId: true }), req.params, res);
+    const body = parseBody(requestStatusSchema, req.body, res);
+    if (!params || !body) return;
+    const { eventId, requestId } = params;
+    const { status } = body;
     const event = await Event.findOne({ _id: eventId, ...eventScope(req) });
     if (!event) {
       res.status(404).json({ error: 'Event not found' });
@@ -209,7 +241,9 @@ export function createRequestsRouter(io: Server): Router {
   });
 
   router.delete('/admin/events/:eventId/requests/:requestId', requireAdmin, async (req: Request<AdminParams>, res: Response) => {
-    const { eventId, requestId } = req.params;
+    const params = parseParams(adminParamsSchema.required({ requestId: true }), req.params, res);
+    if (!params) return;
+    const { eventId, requestId } = params;
     const event = await Event.findOne({ _id: eventId, ...eventScope(req) });
     if (!event) {
       res.status(404).json({ error: 'Event not found' });

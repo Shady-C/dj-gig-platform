@@ -28,6 +28,10 @@ const envSchema = z.object({
   CLOUDINARY_API_SECRET: z.string().optional().default(''),
   CLIENT_ORIGIN: z.string().url(),
   ADMIN_ORIGIN: z.string().url(),
+  TRUST_PROXY_HOPS: z.preprocess(
+    (value) => value ?? (process.env.NODE_ENV === 'production' ? '1' : '0'),
+    z.coerce.number().int().min(0).max(10)
+  ),
 }).superRefine((value, ctx) => {
   for (const key of cloudinaryEnvVars) {
     const envValue = value[key].trim();

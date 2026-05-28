@@ -55,7 +55,7 @@ Three independent packages sharing no build tooling, connected by HTTP and Socke
 
 ### Auth
 
-Single-user admin only. No user table. Server compares login credentials against `ADMIN_EMAIL` / `ADMIN_PASSWORD` env vars and returns a JWT. Admin frontend stores the token in Zustand + `localStorage` and sends it as `Authorization: Bearer <token>` on every protected request.
+User-backed admin auth. On first matching bootstrap login, the server creates or uses a `User` from `ADMIN_EMAIL` / `ADMIN_PASSWORD`, stores a bcrypt password hash, and returns a JWT. Admin frontend stores the token in Zustand + `localStorage` and sends it as `Authorization: Bearer <token>` on every protected request.
 
 ### Real-time events
 
@@ -67,7 +67,7 @@ Server → client socket emissions: `event:updated`, `event:live-changed`, `requ
 - **Stripe webhook** — must receive raw body. Use `express.raw({ type: 'application/json' })` on `/api/stripe/webhook` **before** `express.json()` applies globally.
 - **CORS** — Express and Socket.IO both must allow `CLIENT_ORIGIN` and `ADMIN_ORIGIN` from env (not hardcoded).
 - **Duplicate song requests** — `SongRequest` has a unique compound index `(eventId, itunesTrackId)`. Return `409 Conflict` with the existing doc when a duplicate is submitted; the client should vote instead.
-- **Vote deduplication** — enforced client-side only via `localStorage` (intentional for v1). Server does not validate.
+- **Vote deduplication** — enforced server-side with `Vote` records keyed by request and hashed browser session. Client `localStorage` is only a UX helper.
 - **`isLive` flag** — set only by the admin toggle (`PATCH /api/events/:id/live`). Never auto-compute from `event.date`.
 - **Hero image upload** — Multer middleware: memory storage, 5 MB limit, images only. Upload buffer to Cloudinary folder `dj-gig-platform/heroes`.
 - **Admin Vite port** — must run on `5174` to avoid collision with client on `5173`.
@@ -77,9 +77,9 @@ Server → client socket emissions: `event:updated`, `event:live-changed`, `requ
 
 Three separate `.env` files (`.env.example` in each package). Key vars:
 
-- `server/`: `MONGODB_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `CLOUDINARY_*`, `CLIENT_ORIGIN`, `ADMIN_ORIGIN`
-- `client/`: `VITE_API_BASE_URL`, `VITE_SOCKET_URL`, `VITE_ITUNES_SEARCH_URL`, `VITE_STRIPE_PUBLISHABLE_KEY`, `VITE_EVENT_ID`
-- `admin/`: `VITE_API_BASE_URL`, `VITE_SOCKET_URL`, `VITE_EVENT_ID`
+- `server/`: `MONGODB_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `CLOUDINARY_*`, `CLIENT_ORIGIN`, `ADMIN_ORIGIN`, `TRUST_PROXY_HOPS`
+- `client/`: `VITE_API_BASE_URL`, `VITE_SOCKET_URL`, `VITE_ITUNES_SEARCH_URL`, `VITE_STRIPE_PUBLISHABLE_KEY`, `VITE_EVENT_SLUG`
+- `admin/`: `VITE_API_BASE_URL`, `VITE_SOCKET_URL`
 
 ## UI / Styling
 
