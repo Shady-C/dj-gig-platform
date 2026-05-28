@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { Server } from 'socket.io';
+import rateLimit from 'express-rate-limit';
 import SongRequest, { RequestStatus } from '../models/SongRequest';
 import Vote from '../models/Vote';
 import Event from '../models/Event';
@@ -11,6 +12,22 @@ type GigParams = { slug: string; requestId?: string };
 type AdminParams = { eventId: string; requestId?: string };
 
 const requestStatuses: RequestStatus[] = ['pending', 'approved', 'played', 'rejected'];
+
+const submitRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many song requests, please try again later' },
+});
+
+const voteRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many votes, please try again later' },
+});
 
 function eventScope(req: Request) {
   if (req.user?.role === 'admin') return {};
@@ -41,7 +58,7 @@ export function createRequestsRouter(io: Server): Router {
     res.json(requests);
   });
 
-  router.post('/gigs/:slug/requests', async (req: Request<GigParams>, res: Response) => {
+  router.post('/gigs/:slug/requests', submitRateLimit, async (req: Request<GigParams>, res: Response) => {
     const event = await Event.findOne({ slug: req.params.slug });
     if (!event) {
       res.status(404).json({ error: 'Event not found' });
@@ -89,7 +106,7 @@ export function createRequestsRouter(io: Server): Router {
     }
   });
 
-  router.post('/gigs/:slug/requests/:requestId/vote', async (req: Request<GigParams>, res: Response) => {
+  router.post('/gigs/:slug/requests/:requestId/vote', voteRateLimit, async (req: Request<GigParams>, res: Response) => {
     const event = await Event.findOne({ slug: req.params.slug });
     if (!event) {
       res.status(404).json({ error: 'Event not found' });

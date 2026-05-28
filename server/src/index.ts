@@ -1,65 +1,42 @@
 import http from 'http';
-import express, { RequestHandler } from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import mongoSanitize from 'express-mongo-sanitize';
-import hpp from 'hpp';
+import mongoose from 'mongoose';
 import { Server } from 'socket.io';
 import { env } from './config/env';
 import { connectDB } from './config/db';
-import { errorHandler } from './middleware/errorHandler';
+import { buildApp } from './app';
+import { logger } from './utils/logger';
 import { registerSocketHandlers } from './socket/handlers';
-import authRouter from './routes/auth';
-import { createEventsRouter } from './routes/events';
-import { createRequestsRouter } from './routes/requests';
-import { createTipsRouter } from './routes/tips';
-import { createStripeRouter } from './routes/stripe';
 
-const app = express();
-const server = http.createServer(app);
+const server = http.createServer();
 
-const corsOptions = {
-  origin: [env.CLIENT_ORIGIN, env.ADMIN_ORIGIN],
-  credentials: true,
-};
-
-const io = new Server(server, { cors: corsOptions });
+const io = new Server(server, {
+  cors: { origin: [env.CLIENT_ORIGIN, env.ADMIN_ORIGIN], credentials: true },
+});
 registerSocketHandlers(io);
 
-const sanitizeMongoPayloads: RequestHandler = (req, _res, next) => {
-  if (req.body && typeof req.body === 'object') mongoSanitize.sanitize(req.body);
-  if (req.params && typeof req.params === 'object') mongoSanitize.sanitize(req.params);
-  if (req.query && typeof req.query === 'object') {
-    mongoSanitize.sanitize(req.query as Record<string, unknown>);
-  }
-  next();
-};
-
-// Stripe webhook must receive raw body — mount before express.json()
-app.use('/api/stripe', createStripeRouter(io));
-
-app.use(cors(corsOptions));
-app.use(helmet());
-app.use(rateLimit({ windowMs: 60 * 1000, limit: 120, standardHeaders: true, legacyHeaders: false }));
-app.use(express.json({ limit: '100kb' }));
-app.use(sanitizeMongoPayloads);
-app.use(hpp());
-
-app.use('/api/auth', authRouter);
-app.use('/api', createEventsRouter(io));
-app.use('/api', createRequestsRouter(io));
-app.use('/api', createTipsRouter());
-
-app.use(errorHandler);
+const app = buildApp(io);
+server.on('request', app);
 
 connectDB()
   .then(() => {
     server.listen(Number(env.PORT), () => {
-      console.log(`Server running on :${env.PORT}`);
+      logger.info(`Server running on :${env.PORT}`);
     });
   })
   .catch((err) => {
-    console.error('Failed to connect to MongoDB:', err);
+    logger.fatal({ err }, 'Failed to connect to MongoDB');
     process.exit(1);
   });
+
+function shutdown(signal: string) {
+  logger.info(`${signal} received — shutting down`);
+  server.close(() => {
+    mongoose.connection.close(false).then(() => {
+      logger.info('MongoDB connection closed');
+      process.exit(0);
+    }).catch(() => process.exit(1));
+  });
+  setTimeout(() => process.exit(1), 10_000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

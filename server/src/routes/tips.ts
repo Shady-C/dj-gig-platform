@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import Stripe from 'stripe';
 import mongoose from 'mongoose';
+import rateLimit from 'express-rate-limit';
 import { env } from '../config/env';
 import Tip from '../models/Tip';
 import Event from '../models/Event';
@@ -8,6 +9,14 @@ import { requireAdmin } from '../middleware/auth';
 import { hashIdentifier } from '../utils/hash';
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY);
+
+const tipRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many tip requests, please try again later' },
+});
 
 type GigParams = { slug: string };
 type AdminParams = { eventId: string };
@@ -25,7 +34,7 @@ function getSessionId(req: Request): string {
 export function createTipsRouter(): Router {
   const router = Router();
 
-  router.post('/gigs/:slug/tips/intent', async (req: Request<GigParams>, res: Response) => {
+  router.post('/gigs/:slug/tips/intent', tipRateLimit, async (req: Request<GigParams>, res: Response) => {
     const { amount, currency, tipperName, message, idempotencyKey } = req.body as {
       amount?: number;
       currency?: string;

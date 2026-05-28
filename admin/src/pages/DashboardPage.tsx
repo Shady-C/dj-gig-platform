@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket } from '../hooks/useSocket';
 import { useAdminEvent } from '../hooks/useAdminEvent';
 import { useAdminQueue } from '../hooks/useAdminQueue';
@@ -11,20 +12,17 @@ import { toggleLive } from '../api';
 import type { ISongRequest } from '../api';
 import { useAuthStore } from '../store/authStore';
 
-const EVENT_ID = import.meta.env.VITE_EVENT_ID as string;
-const ACTIVE_EVENT_ID = (window.location.pathname.match(/^\/events\/([^/]+)/)?.[1] ??
-  window.location.pathname.match(/^\/admin\/events\/([^/]+)/)?.[1] ??
-  EVENT_ID) as string;
-
 type Tab = 'queue' | 'tips' | 'stats' | 'event';
 type QueueFilter = ISongRequest['status'] | 'all';
 
 export function DashboardPage() {
+  const { eventId = '' } = useParams<{ eventId: string }>();
+  const navigate = useNavigate();
   const logout = useAuthStore((s) => s.logout);
-  const socket = useSocket(ACTIVE_EVENT_ID);
-  const { event, setEvent, loading, error, reload } = useAdminEvent(ACTIVE_EVENT_ID, socket);
-  const { requests, setStatus, bulkStatus, remove } = useAdminQueue(ACTIVE_EVENT_ID, socket);
-  const { tips, summary } = useAdminTips(ACTIVE_EVENT_ID, socket);
+  const socket = useSocket(eventId);
+  const { event, setEvent, loading, error, reload } = useAdminEvent(eventId, socket);
+  const { requests, setStatus, bulkStatus, remove } = useAdminQueue(eventId, socket);
+  const { tips, summary } = useAdminTips(eventId, socket);
   const [tab, setTab] = useState<Tab>('queue');
   const [filter, setFilter] = useState<QueueFilter>('all');
   const [togglingLive, setTogglingLive] = useState(false);
@@ -74,7 +72,7 @@ export function DashboardPage() {
               Retry
             </button>
             <button
-              onClick={logout}
+              onClick={() => navigate('/events')}
               style={{
                 padding: '12px 18px',
                 borderRadius: 12,
@@ -87,7 +85,7 @@ export function DashboardPage() {
                 fontFamily: 'DM Sans, sans-serif',
               }}
             >
-              Back to Login
+              Back to Events
             </button>
           </div>
         </div>

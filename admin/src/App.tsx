@@ -1,5 +1,7 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { LoginPage } from './pages/LoginPage';
+import { EventsListPage } from './pages/EventsListPage';
 import { DashboardPage } from './pages/DashboardPage';
 
 function App() {
@@ -15,7 +17,25 @@ function App() {
     );
   }
 
-  return isAuthenticated ? <DashboardPage /> : <LoginPage />;
+  return (
+    <BrowserRouter>
+      <Routes>
+        {isAuthenticated ? (
+          <>
+            <Route path="/" element={<Navigate to="/events" replace />} />
+            <Route path="/events" element={<EventsListPage />} />
+            <Route path="/events/:eventId" element={<DashboardPage />} />
+            <Route path="*" element={<Navigate to="/events" replace />} />
+          </>
+        ) : (
+          <>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </>
+        )}
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
 export default App;

@@ -78,6 +78,9 @@ export interface ITipSummary {
 export const login = (email: string, password: string) =>
   api.post<{ token: string }>('/auth/login', { email, password }).then((r) => r.data);
 
+export const listEvents = () =>
+  api.get<IEvent[]>('/admin/events').then((r) => r.data);
+
 export const getEvent = (id: string) =>
   api.get<IEvent>(`/admin/events/${id}`).then((r) => r.data);
 
