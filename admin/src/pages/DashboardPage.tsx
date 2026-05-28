@@ -22,7 +22,7 @@ type QueueFilter = ISongRequest['status'] | 'all';
 export function DashboardPage() {
   const logout = useAuthStore((s) => s.logout);
   const socket = useSocket(ACTIVE_EVENT_ID);
-  const { event, setEvent } = useAdminEvent(ACTIVE_EVENT_ID, socket);
+  const { event, setEvent, loading, error, reload } = useAdminEvent(ACTIVE_EVENT_ID, socket);
   const { requests, setStatus, bulkStatus, remove } = useAdminQueue(ACTIVE_EVENT_ID, socket);
   const { tips, summary } = useAdminTips(ACTIVE_EVENT_ID, socket);
   const [tab, setTab] = useState<Tab>('queue');
@@ -30,10 +30,67 @@ export function DashboardPage() {
   const [togglingLive, setTogglingLive] = useState(false);
   const isLive = event?.status === 'live';
 
-  if (!event) {
+  if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'rgba(255,255,255,0.4)' }}>
         Loading...
+      </div>
+    );
+  }
+
+  if (!event) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+        }}
+      >
+        <div style={{ width: '100%', maxWidth: 420, textAlign: 'center' }}>
+          <h1 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 42, letterSpacing: 3, margin: '0 0 12px' }}>
+            Dashboard Unavailable
+          </h1>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, lineHeight: 1.5, margin: '0 0 20px' }}>
+            {error ?? 'Unable to load the dashboard.'}
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 12 }}>
+            <button
+              onClick={() => void reload()}
+              style={{
+                padding: '12px 18px',
+                borderRadius: 12,
+                border: 'none',
+                background: '#ff8c00',
+                color: '#000',
+                fontWeight: 700,
+                fontSize: 15,
+                cursor: 'pointer',
+                fontFamily: 'DM Sans, sans-serif',
+              }}
+            >
+              Retry
+            </button>
+            <button
+              onClick={logout}
+              style={{
+                padding: '12px 18px',
+                borderRadius: 12,
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'transparent',
+                color: 'rgba(255,255,255,0.75)',
+                fontWeight: 700,
+                fontSize: 15,
+                cursor: 'pointer',
+                fontFamily: 'DM Sans, sans-serif',
+              }}
+            >
+              Back to Login
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

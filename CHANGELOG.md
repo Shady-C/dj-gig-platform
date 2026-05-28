@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Fixed the admin auth/render flow so the app waits for persisted auth hydration, falls back to login on invalid auth, and shows an explicit dashboard load error instead of hanging on `Loading...`.
 - [ADR-0002] Removed local filesystem hero image storage and made Cloudinary credentials required for uploads in all environments.
 - Added a root `npm run dev:cleanup` utility to stop stale local dev port listeners.
 - Locked Vite dev servers to strict documented ports so stale listeners fail visibly instead of shifting ports.

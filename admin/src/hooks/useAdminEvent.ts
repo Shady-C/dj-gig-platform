@@ -1,13 +1,30 @@
 import { useEffect, useState } from 'react';
 import { Socket } from 'socket.io-client';
-import { getEvent } from '../api';
+import { getEvent, isNetworkError } from '../api';
 import type { IEvent } from '../api';
 
 export function useAdminEvent(eventId: string, socket: Socket) {
   const [event, setEvent] = useState<IEvent | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadEvent = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getEvent(eventId);
+      setEvent(data);
+    } catch (err) {
+      setEvent(null);
+      setError(isNetworkError(err) ? 'Unable to reach the server.' : 'Unable to load the dashboard.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    getEvent(eventId).then(setEvent).catch(console.error);
+    void loadEvent();
   }, [eventId]);
 
   useEffect(() => {
@@ -25,5 +42,5 @@ export function useAdminEvent(eventId: string, socket: Socket) {
     };
   }, [socket]);
 
-  return { event, setEvent };
+  return { event, setEvent, loading, error, reload: loadEvent };
 }

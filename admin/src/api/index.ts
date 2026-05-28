@@ -11,6 +11,19 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403)) {
+      useAuthStore.getState().logout();
+    }
+    return Promise.reject(error);
+  }
+);
+
+export const isNetworkError = (error: unknown) =>
+  axios.isAxiosError(error) && !error.response;
+
 export interface IEvent {
   _id: string;
   slug: string;
