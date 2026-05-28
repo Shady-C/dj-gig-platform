@@ -12,9 +12,27 @@ export function useSocket(eventId: string): Socket {
   );
 
   useEffect(() => {
-    socket.emit('join-admin-event', eventId);
+    socket.connect();
     return () => {
       socket.disconnect();
+    };
+  }, [socket]);
+
+  useEffect(() => {
+    if (!eventId) return;
+
+    const joinRoom = () => {
+      socket.emit('join-admin-event', eventId);
+    };
+
+    if (socket.connected) {
+      joinRoom();
+    }
+    socket.on('connect', joinRoom);
+
+    return () => {
+      socket.off('connect', joinRoom);
+      socket.emit('leave-admin-event', eventId);
     };
   }, [eventId, socket]);
 

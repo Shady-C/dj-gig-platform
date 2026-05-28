@@ -9,6 +9,10 @@ export function registerSocketHandlers(io: Server): void {
       socket.join(publicEventRoom(eventId));
     });
 
+    socket.on('leave-public-event', (eventId: string) => {
+      socket.leave(publicEventRoom(eventId));
+    });
+
     socket.on('join-admin-event', (eventId: string) => {
       const token = socket.handshake.auth?.token;
       if (typeof token !== 'string') {
@@ -22,6 +26,10 @@ export function registerSocketHandlers(io: Server): void {
       } catch {
         socket.emit('admin:error', { error: 'Invalid socket auth token' });
       }
+    });
+
+    socket.on('leave-admin-event', (eventId: string) => {
+      socket.leave(adminEventRoom(eventId));
     });
   });
 }

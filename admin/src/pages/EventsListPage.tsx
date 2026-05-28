@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { listEvents } from '../api';
+import { listEvents, createEvent } from '../api';
 import type { IEvent } from '../api';
 import { useAuthStore } from '../store/authStore';
 
@@ -17,6 +17,17 @@ export function EventsListPage() {
   const [events, setEvents] = useState<IEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [newForm, setNewForm] = useState({
+    eventName: '',
+    djName: '',
+    date: '',
+    startTime: '',
+    endTime: '',
+    venue: '',
+  });
 
   useEffect(() => {
     listEvents()
@@ -24,6 +35,29 @@ export function EventsListPage() {
       .catch(() => setError('Failed to load events'))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleCreate = async () => {
+    if (
+      !newForm.eventName.trim() ||
+      !newForm.djName.trim() ||
+      !newForm.date ||
+      !newForm.startTime ||
+      !newForm.endTime ||
+      !newForm.venue.trim()
+    ) {
+      setCreateError('Event name, DJ name, date, start time, end time, and venue are required.');
+      return;
+    }
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const created = await createEvent(newForm);
+      navigate(`/events/${created._id}`);
+    } catch {
+      setCreateError('Failed to create event. Please try again.');
+      setCreating(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -51,24 +85,199 @@ export function EventsListPage() {
         <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 22, letterSpacing: 2 }}>
           Your Events
         </div>
-        <button
-          onClick={logout}
-          style={{
-            padding: '10px 14px',
-            borderRadius: 20,
-            border: '1px solid rgba(255,255,255,0.12)',
-            background: 'transparent',
-            color: 'rgba(255,255,255,0.4)',
-            fontSize: 13,
-            cursor: 'pointer',
-            fontFamily: 'DM Sans, sans-serif',
-          }}
-        >
-          Logout
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            onClick={() => { setShowCreate((v) => !v); setCreateError(null); }}
+            style={{
+              padding: '10px 14px',
+              borderRadius: 20,
+              border: `1px solid ${showCreate ? 'rgba(255,140,0,0.4)' : 'rgba(255,255,255,0.12)'}`,
+              background: showCreate ? 'rgba(255,140,0,0.12)' : 'transparent',
+              color: showCreate ? '#ff8c00' : 'rgba(255,255,255,0.75)',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'DM Sans, sans-serif',
+            }}
+          >
+            + New Event
+          </button>
+          <button
+            onClick={logout}
+            style={{
+              padding: '10px 14px',
+              borderRadius: 20,
+              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'transparent',
+              color: 'rgba(255,255,255,0.4)',
+              fontSize: 13,
+              cursor: 'pointer',
+              fontFamily: 'DM Sans, sans-serif',
+            }}
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       <div style={{ padding: '24px 20px' }}>
+        {showCreate && (
+          <div
+            style={{
+              marginBottom: 24,
+              padding: '20px',
+              borderRadius: 14,
+              border: '1px solid rgba(255,140,0,0.25)',
+              background: 'rgba(255,140,0,0.05)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+            }}
+          >
+            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 18, letterSpacing: 1.5 }}>
+              New Event
+            </div>
+            {(['eventName', 'djName', 'venue'] as const).map((key) => (
+              <label key={key} style={{ display: 'block' }}>
+                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>
+                  {key === 'eventName' ? 'Event Name' : key === 'djName' ? 'DJ Name' : 'Venue'}
+                </span>
+                <input
+                  type="text"
+                  value={newForm[key]}
+                  onChange={(e) => setNewForm((f) => ({ ...f, [key]: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: 10,
+                    color: '#fff',
+                    fontSize: 15,
+                    padding: '12px 14px',
+                    outline: 'none',
+                    fontFamily: 'DM Sans, sans-serif',
+                  }}
+                />
+              </label>
+            ))}
+            <label style={{ display: 'block' }}>
+              <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>
+                Date
+              </span>
+              <input
+                type="date"
+                value={newForm.date}
+                onChange={(e) => setNewForm((f) => ({ ...f, date: e.target.value }))}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: 10,
+                  color: '#fff',
+                  fontSize: 15,
+                  padding: '12px 14px',
+                  outline: 'none',
+                  fontFamily: 'DM Sans, sans-serif',
+                  colorScheme: 'dark',
+                }}
+              />
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+              <label style={{ display: 'block' }}>
+                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>
+                  Start Time
+                </span>
+                <input
+                  type="time"
+                  value={newForm.startTime}
+                  onChange={(e) => setNewForm((f) => ({ ...f, startTime: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: 10,
+                    color: '#fff',
+                    fontSize: 15,
+                    padding: '12px 14px',
+                    outline: 'none',
+                    fontFamily: 'DM Sans, sans-serif',
+                    colorScheme: 'dark',
+                  }}
+                />
+              </label>
+              <label style={{ display: 'block' }}>
+                <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 6 }}>
+                  End Time
+                </span>
+                <input
+                  type="time"
+                  value={newForm.endTime}
+                  onChange={(e) => setNewForm((f) => ({ ...f, endTime: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: 10,
+                    color: '#fff',
+                    fontSize: 15,
+                    padding: '12px 14px',
+                    outline: 'none',
+                    fontFamily: 'DM Sans, sans-serif',
+                    colorScheme: 'dark',
+                  }}
+                />
+              </label>
+            </div>
+            {createError && (
+              <p style={{ color: '#ff5050', fontSize: 13, margin: 0 }}>{createError}</p>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={handleCreate}
+                disabled={creating}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: 12,
+                  border: 'none',
+                  background: '#ff8c00',
+                  color: '#000',
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: creating ? 'wait' : 'pointer',
+                  fontFamily: 'DM Sans, sans-serif',
+                }}
+              >
+                {creating ? 'Creating...' : 'Create Event'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowCreate(false);
+                  setCreateError(null);
+                  setNewForm({ eventName: '', djName: '', date: '', startTime: '', endTime: '', venue: '' });
+                }}
+                disabled={creating}
+                style={{
+                  padding: '12px 18px',
+                  borderRadius: 12,
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'transparent',
+                  color: 'rgba(255,255,255,0.5)',
+                  fontSize: 15,
+                  cursor: 'pointer',
+                  fontFamily: 'DM Sans, sans-serif',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         {error && (
           <p style={{ color: '#ff5050', fontSize: 14, marginBottom: 16 }}>{error}</p>
         )}

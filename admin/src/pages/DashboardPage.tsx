@@ -96,7 +96,7 @@ export function DashboardPage() {
   const handleToggleLive = async () => {
     setTogglingLive(true);
     try {
-      const updated = await toggleLive(ACTIVE_EVENT_ID, !isLive);
+      const updated = await toggleLive(eventId, !isLive);
       setEvent(updated);
     } finally {
       setTogglingLive(false);
@@ -139,11 +139,29 @@ export function DashboardPage() {
           gap: 12,
         }}
       >
-        <div>
-          <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 22, letterSpacing: 2, lineHeight: 1 }}>
-            {event.eventName}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <button
+            onClick={() => navigate('/events')}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 20,
+              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'transparent',
+              color: 'rgba(255,255,255,0.4)',
+              fontSize: 13,
+              cursor: 'pointer',
+              fontFamily: 'DM Sans, sans-serif',
+              flexShrink: 0,
+            }}
+          >
+            ← Events
+          </button>
+          <div>
+            <div style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 22, letterSpacing: 2, lineHeight: 1 }}>
+              {event.eventName}
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{event.djName}</div>
           </div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{event.djName}</div>
         </div>
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>

@@ -81,6 +81,9 @@ export const login = (email: string, password: string) =>
 export const listEvents = () =>
   api.get<IEvent[]>('/admin/events').then((r) => r.data);
 
+export const createEvent = (data: Partial<IEvent>) =>
+  api.post<IEvent>('/admin/events', data).then((r) => r.data);
+
 export const getEvent = (id: string) =>
   api.get<IEvent>(`/admin/events/${id}`).then((r) => r.data);
 

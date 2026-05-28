@@ -247,7 +247,6 @@ Required:
 
 - `VITE_API_BASE_URL`
 - `VITE_SOCKET_URL`
-- `VITE_EVENT_ID`
 
 ## Local Development
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { updateEvent, uploadHero } from '../api';
 import type { IEvent } from '../api';
 
@@ -28,6 +28,26 @@ export function EventEditor({ event, onUpdated }: Props) {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
   const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    setForm({
+      djName: event.djName,
+      eventName: event.eventName,
+      slug: event.slug,
+      tagline: event.tagline,
+      genre: event.genre,
+      date: event.date,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      timezone: event.timezone,
+      venue: event.venue,
+      address: event.address,
+      coverInfo: event.coverInfo,
+      ticketLink: event.ticketLink,
+      instagramLink: event.instagramLink,
+      heroImageUrl: event.heroImageUrl,
+    });
+  }, [event]);
 
   const set = (key: keyof IEvent, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
